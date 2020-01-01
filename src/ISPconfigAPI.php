@@ -53,12 +53,7 @@ class ISPconfigAPI
 
         $res = json_decode($res->getBody(), true);
 
-        if ($res["code"] != "ok")
-        {
-            return $res;
-        }
-
-        return $res["response"];
+        return $res;
     }
 
     /**
