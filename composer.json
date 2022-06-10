@@ -11,7 +11,7 @@
     }
   ],
   "require": {
-    "guzzlehttp/guzzle": "6.5.0",
+    "guzzlehttp/guzzle": "6.5.7",
     "ext-json": "*",
     "php": ">=5.4.0"
   },
