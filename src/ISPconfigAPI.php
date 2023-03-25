@@ -12,74 +12,54 @@ use GuzzleHttp;
 
 class ISPconfigAPI
 {
-    private $url;
-    private $user;
-    private $pass;
+    private string $url;
+    private string $user;
+    private string $pass;
 
-    /**
-     * ISPconfigAPI constructor.
-     * @param $user
-     * @param $pass
-     * @param $url
-     */
-    public function __construct($user, $pass, $url)
+    private string $session;
+    private GuzzleHttp\Client $httpClient;
+
+    public function __construct(array $config)
     {
-        $this->url = $url."/remote/json.php";
-        $this->user = $user;
-        $this->pass = $pass;
+        $this->url = $config['url']."/remote/json.php";
+        $this->user = $config['user'];
+        $this->pass = $config['pass'];
+
+        if (!isset($config['verifySSL']) && empty($config['verifySSL'])) {$config['verifySSL'] = true;}
+        $this->httpClient = new GuzzleHttp\Client(['verify' => $config['verifySSL']]);
+        $this->login();
     }
 
-    /**
-     * @param $method
-     * @param array $data
-     * @return mixed|\Psr\Http\Message\ResponseInterface
-     */
     public function call($method, $data = array())
     {
-        $login = $this->login();
-        if ($login["code"] != "ok")
-        {
-            return $login;
-        }
-        $session_id = $login["response"];
-
-        $data = array_merge(['session_id' => $session_id], $data);
-        $client = new GuzzleHttp\Client();
-        $res = $client->request('PUT', $this->url . '?'.$method, [
+        $data = array_merge(['session_id' => $this->session], $data);
+        $res = $this->httpClient->request('PUT', $this->url . '?'.$method, [
             'json' => $data
         ]);
-
-        $this->logout($session_id);
-
         $res = json_decode($res->getBody(), true);
 
         return $res;
     }
 
-    /**
-     * @return mixed|\Psr\Http\Message\ResponseInterface
-     */
-    private function login()
+    public function login()
     {
-        $client = new GuzzleHttp\Client();
-        $res = $client->request('PUT', $this->url . '?login', [
+        $res = $this->httpClient->request('PUT', $this->url . '?login', [
             'json' => ['username' => $this->user, 'password' => $this->pass]
         ]);
 
         $res = json_decode($res->getBody(), true);
 
-        return $res;
+        if ($res["code"] == "ok") {
+            $this->session = $res["response"];
+        } elseif ($res["code"] == "remote_fault") {
+            throw new \Exception($res["message"]);
+        }
     }
 
-    /**
-     * @param $session_id
-     * @return bool
-     */
-    private function logout($session_id)
+    public function logout()
     {
-        $client = new GuzzleHttp\Client();
-        $res = $client->request('PUT', $this->url . '?logout', [
-            'json' => ['session_id' => $session_id]
+        $res = $this->httpClient->request('PUT', $this->url . '?logout', [
+            'json' => ['session_id' => $this->session]
         ]);
 
         $res = json_decode($res->getBody(), true);

@@ -24,7 +24,7 @@ class ISPconfigAPI extends ISPconfigAPIBase
 }
 
 include "login.php";
-$call = new ISPconfigAPI($user, $pass, $url);
+$call = new ISPconfigAPI(['user' => $user, 'pass' => $pass, 'url' => $url]);
 
 try {
     $client = $call->call("client_get", ["client_id" => 1]);
