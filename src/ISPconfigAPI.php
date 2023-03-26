@@ -12,7 +12,7 @@ use GuzzleHttp;
 
 class ISPconfigAPI
 {
-    private string $url;
+    private string $url = '/remote/json.php';
     private string $user;
     private string $pass;
 
@@ -21,55 +21,56 @@ class ISPconfigAPI
 
     public function __construct(array $config)
     {
-        $this->url = $config['url']."/remote/json.php";
+        $this->url = $config['url'].$this->url;
         $this->user = $config['user'];
         $this->pass = $config['pass'];
 
         if (!isset($config['verifySSL']) && empty($config['verifySSL'])) {$config['verifySSL'] = true;}
-        $this->httpClient = new GuzzleHttp\Client(['verify' => $config['verifySSL']]);
+        $this->httpClient = new GuzzleHttp\Client(['base_uri' => $this->url, 'verify' => $config['verifySSL']]);
         $this->login();
     }
 
-    public function call($method, $data = array())
+    public function call(string $method, array $data = array())
     {
         $data = array_merge(['session_id' => $this->session], $data);
-        $res = $this->httpClient->request('PUT', $this->url . '?'.$method, [
+        $res = $this->httpClient->request('PUT', '?'.$method, [
             'json' => $data
         ]);
         $res = json_decode($res->getBody(), true);
 
-        return $res;
-    }
-
-    public function login()
-    {
-        $res = $this->httpClient->request('PUT', $this->url . '?login', [
-            'json' => ['username' => $this->user, 'password' => $this->pass]
-        ]);
-
-        $res = json_decode($res->getBody(), true);
-
-        if ($res["code"] == "ok") {
-            $this->session = $res["response"];
-        } elseif ($res["code"] == "remote_fault") {
+        if ($res["code"] != "ok") {
             throw new \Exception($res["message"]);
         }
+
+        return $res["response"];
     }
 
-    public function logout()
+    public function login(): bool
     {
-        $res = $this->httpClient->request('PUT', $this->url . '?logout', [
-            'json' => ['session_id' => $this->session]
+        $res = $this->httpClient->request('PUT', '?login', [
+            'json' => ['username' => $this->user, 'password' => $this->pass]
         ]);
-
         $res = json_decode($res->getBody(), true);
 
-        if ($res["code"] == "ok")
-        {
-            return true;
-        } else {
-            return false;
+        if ($res["code"] != "ok") {
+            throw new \Exception($res["message"]);
         }
+
+        $this->session = $res["response"];
+        return true;
+    }
+
+    public function logout(): bool
+    {
+        $res = $this->httpClient->request('PUT', '?logout', [
+            'json' => ['session_id' => $this->session]
+        ]);
+        $res = json_decode($res->getBody(), true);
+
+        if ($res["code"] != "ok") {
+            throw new \Exception($res["message"]);
+        }
+        return true;
     }
 
 }
